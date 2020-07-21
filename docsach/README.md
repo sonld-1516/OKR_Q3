@@ -2,7 +2,7 @@
 ### Clean Code - A Handbook Of Agile Software Craftmanship
 Gồm 17 chương
 
-<p>Chương 1: Clean code</p>
+<p>[Chương 1: Clean code](chuong_1.md)</p>
 <p>Chương 2: Meaningful Names</p>
 <p>Chương 3: Functions</p>
 <p>Chương 4: Comments</p>
