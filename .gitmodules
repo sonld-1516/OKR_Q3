@@ -1,0 +1,3 @@
+[submodule "devise/demo_app"]
+	path = devise/demo_app
+	url = git@github.com:leducson/devise_demo.git
