@@ -1,4 +1,4 @@
-## Config stripe trong ứng dụng để có thể thanh toán được
+## 1: Config stripe trong ứng dụng để có thể thanh toán được
 
 - Trong bài viết này sẽ thực hiện các bước config trong ứng dụng Ruby on Rails.
 - Ở những ngôn ngữ khác, các bước config cũng tiến hành tương tự
@@ -103,7 +103,7 @@ Hoặc quá trình gửi bị lỗi thì chuyển hướng sang trang thất b�
 
 Đến đây thì cơ bản là đã hoàn thành. Nhưng để xác nhận thanh toán trên stripe đã thực sự thành công hay chưa thì ta phải config 1 webhook để lắng nghe sự kiện thanh toán thành công trên stripe để tiến hành cập nhập invoice ở server của mình
 
-#### Tạo webhook để xác nhận thanh toán thành công
+## 2: Tạo webhook để xác nhận thanh toán thành công
 ##### Tạo contronller để lắng nghe khi thanh toán thực sự thành công trên stripe
 
 ```
@@ -191,7 +191,7 @@ Stripe không thể gửi callback về link localhost được. Muốn test đ�
 
 **Đến đây thì thanh toán đã thực sự thành công**
 
-#### Thanh toán định kỳ với stripe (Subscription)
+## 3: Thanh toán định kỳ với stripe (Subscription)
 
 Cũng tương tự như thanh toán riêng lẻ từng sản phẩm phía trên.<br>
 Subscription có các dạng thanh toán
@@ -292,7 +292,7 @@ Còn xác nhận cụ thể thanh toán subscription thành công hay chưa, ta 
 
 **Tới đây là chúng ta đã tạo và xử lý thành công thanh toán định kỳ stripe**
 
-##### Refund trong Stripe
+## 4: Refund trong Stripe
 Để hoàn trả 1 khoản thanh toán trên stripe thì cũng có 2 cách
 - Cách 1: Refund bằng API
 
