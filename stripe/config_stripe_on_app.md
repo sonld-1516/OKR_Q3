@@ -181,7 +181,11 @@ end
   - charge.refunded ( sự kiện hoàn trả thanh toán thành công)
   - charge.succeeded ( sự kiện thanh toán thành công )
 
-
+**Note**<br>
+Stripe không thể gửi callback về link localhost được. Muốn test được callback webhook ở dưới localhost thì
+- Sử dụng ngrok để tạo link ảo gán cho webhook stripe
+- Sử dụng thư viện `stripe-cli` cài đặt dưới local để test function trong controller callback
+([Stripe CLI](https://stripe.com/docs/stripe-cli))
 
 
 
@@ -241,4 +245,95 @@ Tạo xong trên dashboard lấy thông tin plan_id lưu về dưới database c
 ![Plan ID](/images/stripe/plan_id.png)
 
 ##### Tiến hành thanh toán định kỳ
-Các bước config popup payment ở client tương tự như thanh toàn bình thường.
+
+Tạo view hiển thị plan cho user chọn để thanh toán subscription
+![Plan view](/images/stripe/plan_view.png)
+Các bước config popup payment ở client tương tự như ở đây
+[Config checkout stripe client](config_stripe_on_app.md#tạo-một-view-list-các-sản-phẩm-để-thực-hiện-thanh-toán-thử-bằng-stripe)
+
+**Tạo controller để gửi thông tin thanh toán định kỳ**
+**Bước 1: Tạo customer cho mỗi thanh toán subscription**
+```
+Stripe.api_key = ENV["STRIPE_SECRET_KEY"]
+token = params[:token]
+info = Stripe::Token.retrieve(token)
+
+customer = Stripe::Customer.create(
+  source: token,
+  email: info.email
+)
+```
+Có thông tin customer trên stripe thì stripe mới có thể định kỳ thanh toán cho customer đó được
+
+**Bước 2: Tạo invoice cho thanh toán**
+```
+@invoice = @plan.invoices.create price: @plan.price, status: :no_invoice_due, name: @plan.name
+```
+**Bước 3: Tiến hành gửi yêu cầu thanh toán định kỳ lên stripe**
+```
+Stripe::Subscription.create(
+  :customer => customer.id,
+  :metadata => {
+    invoice_id: @invoice.id
+  },
+  :items => [
+    { plan: @plan.plan_stripe_id }
+  ]
+)
+```
+- customer ==> là tạo subsription cho customer nào trên stripe
+- metadata ==> Thông tin thêm sẽ được webhook gửi về kèm khi xác nhận thanh toán
+- items ==> Chọn plan muốn tạo thanh toán định kỳ
+
+Sau khi gửi thông tin lên stripe thành công thì ta chuyển về trang thông báo subscription thành công, hoặc trang thông báo thất bại
+
+Còn xác nhận cụ thể thanh toán subscription thành công hay chưa, ta tiến hành khi webhook gửi sự kiện về
+[Webhook IPN subscription](config_stripe_on_app.md#tạo-webhook-để-xác-nhận-thanh-toán-thành-công). Trong hàm callback webhook thì sẽ tiến hành tạo mới hoặc update invoice cho những thanh toán định kỳ
+
+**Tới đây là chúng ta đã tạo và xử lý thành công thanh toán định kỳ stripe**
+
+##### Refund trong Stripe
+Để hoàn trả 1 khoản thanh toán trên stripe thì cũng có 2 cách
+- Cách 1: Refund bằng API
+
+Để refund bằng API thì chúng ta dựa vào invoice của mỗi lần thanh toán trên website của mình
+![Invoice](/images/stripe/invoice.png)
+- Những thanh toán thực sự thành công sẽ có status `paid` thì có thể tiến hành `refund`
+- Những thanh toán không thành công thì có thể tiến hành thanh toán lại `Re payment`<br>
+(Repayment cũng giống như 1 thanh toán mới. Sẽ tiến hành gửi thông tin thanh toán lên stripe và xác nhận giống như bình thường thôi)
+
+```
+class RefundsController < ApplicationController
+  before_action :load_invoice, only: :create
+
+  def create
+    Stripe.api_key = ENV["STRIPE_SECRET_KEY"]
+
+    refund = Stripe::Refund.create({
+      charge: @invoice.charge_id
+    })
+
+    if refund.status = "succeeded" && refund.object == "refund"
+      @invoice.refuning!
+      flash.now[:success] = "Refund payment is processing"
+    else
+      flash.now[:success] = "Refund payment is failed"
+    end
+  rescue
+    flash.now[:success] = "Refund payment is failed"
+  end
+
+  private
+  def load_invoice
+    @invoice = Invoice.find_by id: params[:invoice_id]
+  end
+end
+```
+Chúng ta gọi API `Stripe::Refund.create` để gửi yêu cầu refund lên stripe. Và xác nhận Refund thực sự thành công qua callback  tại đây [Webhook Refund](config_stripe_on_app.md#tạo-contronller-để-lắng-nghe-khi-thanh-toán-thực-sự-thành-công-trên-stripe) và update invoice sang trạng thái refund.
+
+
+- Cách 2: Refund trên màn hình dashboard
+
+![List Payment](/images/stripe/list_payment.png)
+Muốn refund thanh toán nào thì ta click vào thanh toán đó, để chuyển qua trang chi tiết thanh toán và click button refund thôi
+![Refund](/images/stripe/refund.png)
